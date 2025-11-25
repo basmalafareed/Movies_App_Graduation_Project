@@ -66,7 +66,7 @@ class OnboardingScreen2 extends StatelessWidget {
             right: 0,
             child: Container(
               decoration: const BoxDecoration(
-                color: Color(0xFF0A0A0A), 
+                color: Color(0xFF0A0A0A),
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(32),
                   topRight: Radius.circular(32),
@@ -107,7 +107,7 @@ class OnboardingScreen2 extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 32),
-  
+
                       SizedBox(
                         width: double.infinity,
                         height: 56,

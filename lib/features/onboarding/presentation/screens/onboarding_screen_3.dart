@@ -71,7 +71,7 @@ class OnboardingScreen3 extends StatelessWidget {
             right: 0,
             child: Container(
               decoration: const BoxDecoration(
-                color: Color(0xFF0A0A0A), 
+                color: Color(0xFF0A0A0A),
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(32),
                   topRight: Radius.circular(32),
@@ -99,7 +99,7 @@ class OnboardingScreen3 extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
-  
+
                       Text(
                         'Discover movies from every genre, in all available qualities. Find something new and exciting to watch every day.',
                         style: GoogleFonts.poppins(
@@ -144,7 +144,7 @@ class OnboardingScreen3 extends StatelessWidget {
                       SizedBox(
                         width: double.infinity,
                         height: 56,
-                        child:OutlinedButton(
+                        child: OutlinedButton(
                           onPressed: onBack,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.accent,

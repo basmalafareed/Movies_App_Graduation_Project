@@ -115,8 +115,7 @@ class AuthRepository {
         'email': email.trim(),
         'phone': phone,
         'avatar': avatar,
-        'password':
-            password,
+        'password': password,
         'createdAt': DateTime.now().toIso8601String(),
       };
 

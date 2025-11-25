@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -5,57 +6,157 @@ import 'package:movies_app_graduation_project/features/home/data/models/movie_mo
 import 'package:movies_app_graduation_project/features/home/data/repositories/movie_repository.dart';
 import 'package:movies_app_graduation_project/providers/favorites_provider.dart';
 
-class MovieDetailScreen extends StatelessWidget {
+class MovieDetailScreen extends StatefulWidget {
   final MovieModel movie;
 
   const MovieDetailScreen({super.key, required this.movie});
 
   @override
+  State<MovieDetailScreen> createState() => _MovieDetailScreenState();
+}
+
+class _MovieDetailScreenState extends State<MovieDetailScreen> {
+  late MovieModel _movie;
+  bool _isLoadingDetails = false;
+  bool _isLoadingSuggestions = false;
+  String? _detailsError;
+  List<MovieModel> _similarMovies = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _movie = widget.movie;
+    _fetchDetails();
+    _fetchSuggestions();
+  }
+
+  Future<void> _fetchDetails() async {
+    setState(() {
+      _isLoadingDetails = true;
+      _detailsError = null;
+    });
+    try {
+      final repository = context.read<MovieRepository>();
+      final details = await repository.getMovieDetails(widget.movie.id);
+      if (mounted) {
+        setState(() {
+          _movie = details;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _detailsError = error.toString();
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingDetails = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchSuggestions() async {
+    setState(() {
+      _isLoadingSuggestions = true;
+    });
+    try {
+      final repository = context.read<MovieRepository>();
+      final suggestions = await repository.getSuggestions(widget.movie.id);
+      if (mounted) {
+        setState(() {
+          _similarMovies = suggestions;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _similarMovies = [];
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingSuggestions = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: CustomScrollView(
-        slivers: [
-          // Header with poster, gradient, buttons, and play button
-          _buildHeader(context),
-          // Content sections
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Movie Title + Year
-                _buildTitleSection(),
-                const SizedBox(height: 16),
-                // Watch Button
-                _buildWatchButton(),
-                const SizedBox(height: 24),
-                // Statistic Badges
-                _buildStatisticBadges(),
-                const SizedBox(height: 32),
-                // Screenshots Section
-                _buildScreenshotsSection(),
-                const SizedBox(height: 32),
-                // Similar Movies Section
-                _buildSimilarMoviesSection(),
-                const SizedBox(height: 32),
-                // Summary Section
-                _buildSummarySection(),
-                const SizedBox(height: 32),
-                // Cast Section
-                _buildCastSection(),
-                const SizedBox(height: 32),
-                // Genres Section
-                _buildGenresSection(),
-                const SizedBox(height: 32),
-              ],
-            ),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              _buildHeader(context),
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildTitleSection(),
+                    const SizedBox(height: 16),
+                    _buildWatchButton(),
+                    const SizedBox(height: 24),
+                    _buildStatisticBadges(),
+                    if (_detailsError != null) ...[
+                      const SizedBox(height: 16),
+                      _buildDetailsError(),
+                    ],
+                    const SizedBox(height: 32),
+                    _buildScreenshotsSection(),
+                    const SizedBox(height: 32),
+                    _buildSimilarMoviesSection(),
+                    const SizedBox(height: 32),
+                    _buildSummarySection(),
+                    const SizedBox(height: 32),
+                    _buildCastSection(),
+                    const SizedBox(height: 32),
+                    _buildGenresSection(),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ],
           ),
+          if (_isLoadingDetails)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Text('Updating…', style: TextStyle(color: Colors.white)),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildHeader(BuildContext context) {
+    final backdrop = _movie.backgroundImage ?? _movie.posterPath;
     return SliverAppBar(
       expandedHeight: 400,
       pinned: false,
@@ -72,14 +173,14 @@ class MovieDetailScreen extends StatelessWidget {
           margin: const EdgeInsets.all(12),
           child: Consumer<FavoritesProvider>(
             builder: (context, favoritesProvider, _) {
-              final isFavorite = favoritesProvider.isFavorite(movie.id);
+              final isFavorite = favoritesProvider.isFavorite(_movie.id);
               return IconButton(
                 icon: Icon(
                   isFavorite ? Icons.bookmark : Icons.bookmark_border_outlined,
                   color: Colors.white,
                 ),
                 onPressed: () {
-                  favoritesProvider.toggleFavorite(movie.id);
+                  favoritesProvider.toggleFavorite(_movie.id);
                 },
               );
             },
@@ -90,17 +191,7 @@ class MovieDetailScreen extends StatelessWidget {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // Movie Poster Background
-            Image.asset(
-              movie.posterPath,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[900],
-                  child: const Icon(Icons.movie, color: Colors.grey, size: 80),
-                );
-              },
-            ),
+            _buildNetworkImage(backdrop, fit: BoxFit.cover),
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -108,14 +199,13 @@ class MovieDetailScreen extends StatelessWidget {
                   end: Alignment.topCenter,
                   colors: [
                     Colors.black,
-                    Colors.black.withOpacity(0.7),
+                    Colors.black.withOpacity(0.2),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.5, 1.0],
                 ),
               ),
             ),
-            // Play Button at center
             Center(
               child: Container(
                 width: 80,
@@ -153,7 +243,7 @@ class MovieDetailScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              movie.title,
+              _movie.title,
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 28,
@@ -163,7 +253,7 @@ class MovieDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '2022', 
+              _movie.year?.toString() ?? 'Year unavailable',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 16,
@@ -191,8 +281,7 @@ class MovieDetailScreen extends StatelessWidget {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () {
-              },
+              onTap: () {},
               borderRadius: BorderRadius.circular(12),
               child: Center(
                 child: Text(
@@ -215,16 +304,20 @@ class MovieDetailScreen extends StatelessWidget {
     return Consumer<FavoritesProvider>(
       builder: (context, favoritesProvider, _) {
         final favoriteCount = favoritesProvider.favoriteMovieIds.length;
+        final runtime = _movie.runtime != null
+            ? '${_movie.runtime} mins'
+            : 'N/A';
+        final rating = _movie.rating.toStringAsFixed(1);
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _buildStatBadge(Icons.favorite, favoriteCount.toString()),
-              const SizedBox(width: 16),
-              _buildStatBadge(Icons.access_time, '90'),
-              const SizedBox(width: 16),
-              _buildStatBadge(Icons.star, movie.rating.toString()),
+              const SizedBox(width: 3),
+              _buildStatBadge(Icons.access_time, runtime),
+              const SizedBox(width: 3),
+              _buildStatBadge(Icons.star, rating),
             ],
           ),
         );
@@ -257,7 +350,45 @@ class MovieDetailScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildDetailsError() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.withOpacity(0.4)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.redAccent),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Could not load the latest details. Showing cached info.',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: Colors.redAccent,
+                ),
+              ),
+            ),
+            TextButton(onPressed: _fetchDetails, child: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildScreenshotsSection() {
+    final screenshots =
+        _movie.screenshotUrls ??
+        [
+          'assets/images/screenshot_1.png',
+          'assets/images/screenshot_2.png',
+          'assets/images/screenshot_3.png',
+        ];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -273,40 +404,28 @@ class MovieDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Column(
-            children: [
-              _buildScreenshot('assets/images/screenshot_1.png'),
-              const SizedBox(height: 14),
-              _buildScreenshot('assets/images/screenshot_2.png'),
-              const SizedBox(height: 14),
-              _buildScreenshot('assets/images/screenshot_3.png'),
-            ],
+            children: screenshots
+                .map(
+                  (path) => Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _buildScreenshot(path),
+                  ),
+                )
+                .toList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildScreenshot(String imagePath) {
+  Widget _buildScreenshot(String path) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: Image.asset(
-        imagePath,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            height: 200,
-            color: Colors.grey[900],
-            child: const Icon(Icons.image, color: Colors.grey, size: 50),
-          );
-        },
-      ),
+      child: _buildNetworkImage(path, height: 200, width: double.infinity),
     );
   }
 
   Widget _buildSimilarMoviesSection() {
-    final similarMovies = MovieRepository.getActionMovies().take(4).toList();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -322,24 +441,35 @@ class MovieDetailScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.56, 
+        if (_isLoadingSuggestions)
+          const Center(child: CircularProgressIndicator())
+        else if (_similarMovies.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'No suggestions available for this title.',
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey),
             ),
-            itemCount: similarMovies.length,
-            itemBuilder: (context, index) {
-              final similarMovie = similarMovies[index];
-              return _buildSimilarMovieCard(similarMovie);
-            },
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.56,
+              ),
+              itemCount: _similarMovies.length,
+              itemBuilder: (context, index) {
+                final similarMovie = _similarMovies[index];
+                return _buildSimilarMovieCard(similarMovie);
+              },
+            ),
           ),
-        ),
       ],
     );
   }
@@ -349,21 +479,11 @@ class MovieDetailScreen extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Stack(
         children: [
-          Image.asset(
+          _buildNetworkImage(
             movie.posterPath,
             width: double.infinity,
             height: double.infinity,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                width: double.infinity,
-                height: double.infinity,
-                color: Colors.grey[900],
-                child: const Icon(Icons.movie, color: Colors.grey, size: 40),
-              );
-            },
           ),
-          // Rating Badge
           Positioned(
             top: 8,
             left: 8,
@@ -411,7 +531,8 @@ class MovieDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Following the events of Spider-Man No Way Home, Doctor Strange unwittingly casts a forbidden spell that accidentally opens up the multiverse. With help from Wong and Scarlet Witch, Strange confronts various versions of himself as well as teaming up with the young America Chavez while traveling through various realities and working to restore reality as he knows it. Along the way, Strange and his allies realize they must take on a powerful new adversary who seeks to take over the multiverse. —Blazer346',
+            _movie.summary ??
+                'We could not find an official summary for this title yet.',
             textAlign: TextAlign.justify,
             style: GoogleFonts.poppins(
               fontSize: 14,
@@ -426,28 +547,7 @@ class MovieDetailScreen extends StatelessWidget {
   }
 
   Widget _buildCastSection() {
-    final castMembers = [
-      {
-        'name': 'Hayley Atwell',
-        'character': 'Captain Carter',
-        'image': 'assets/images/actor_1.png',
-      },
-      {
-        'name': 'Elizabeth Olsen',
-        'character': 'Wanda Maximoff / The Scarlet Witch',
-        'image': 'assets/images/actor_2.png',
-      },
-      {
-        'name': 'Rachel McAdams',
-        'character': 'Dr. Christine Palmer',
-        'image': 'assets/images/actor_3.png',
-      },
-      {
-        'name': 'Charlize Theron',
-        'character': 'Clea',
-        'image': 'assets/images/actor_4.png',
-      },
-    ];
+    final castMembers = _movie.cast ?? [];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -463,22 +563,29 @@ class MovieDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          ...castMembers.map(
-            (member) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _buildCastCard(
-                member['name']!,
-                member['character']!,
-                member['image']!,
-              ),
-            ),
-          ),
+          if (castMembers.isEmpty)
+            Text(
+              'Cast information is not available.',
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey),
+            )
+          else
+            ...castMembers.map((member) {
+              final parts = member.split(' as ');
+              final name = parts.first;
+              final character = parts.length > 1
+                  ? parts.sublist(1).join(' as ')
+                  : null;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildCastCard(name, character),
+              );
+            }),
         ],
       ),
     );
   }
 
-  Widget _buildCastCard(String name, String character, String imagePath) {
+  Widget _buildCastCard(String name, String? character) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -487,22 +594,14 @@ class MovieDetailScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              imagePath,
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 60,
-                  height: 60,
-                  color: Colors.grey[800],
-                  child: const Icon(Icons.person, color: Colors.grey, size: 30),
-                );
-              },
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.grey[800],
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: const Icon(Icons.person, color: Colors.grey, size: 30),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -510,22 +609,24 @@ class MovieDetailScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Name: $name',
+                  name,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Character: $character',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.grey,
+                if (character != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    character,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.grey,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -535,7 +636,7 @@ class MovieDetailScreen extends StatelessWidget {
   }
 
   Widget _buildGenresSection() {
-    final genres = ['Action', 'Sci-Fi', 'Adventure', 'Fantasy', 'Horror'];
+    final genres = _movie.genres ?? ['Uncategorized'];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -576,6 +677,48 @@ class MovieDetailScreen extends StatelessWidget {
           color: Colors.white,
         ),
       ),
+    );
+  }
+
+  Widget _buildNetworkImage(
+    String path, {
+    double? width,
+    double? height,
+    BoxFit fit = BoxFit.cover,
+  }) {
+    if (path.startsWith('http')) {
+      return CachedNetworkImage(
+        imageUrl: path,
+        width: width,
+        height: height,
+        fit: fit,
+        placeholder: (context, url) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey[900],
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+        errorWidget: (context, url, error) => _imageFallback(width, height),
+      );
+    }
+
+    return Image.asset(
+      path,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        return _imageFallback(width, height);
+      },
+    );
+  }
+
+  Widget _imageFallback(double? width, double? height) {
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.grey[900],
+      child: const Icon(Icons.movie, color: Colors.grey, size: 40),
     );
   }
 }

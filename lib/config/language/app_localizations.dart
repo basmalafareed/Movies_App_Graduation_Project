@@ -14,7 +14,6 @@ class AppLocalizations {
 
   String get appName => 'Movies';
   String get splashLoading => 'Loading...';
-
 }
 
 class _AppLocalizationsDelegate

@@ -1,12 +1,16 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:movies_app_graduation_project/core/resources/colors.dart';
 import 'package:movies_app_graduation_project/core/routes/app_routes.dart';
 import 'package:movies_app_graduation_project/features/home/data/models/movie_model.dart';
-import 'package:movies_app_graduation_project/features/home/data/repositories/movie_repository.dart';
 import 'package:movies_app_graduation_project/features/home/presentation/screens/search_tab.dart';
 import 'package:movies_app_graduation_project/features/home/presentation/screens/browse_tab.dart';
 import 'package:movies_app_graduation_project/features/home/presentation/screens/profile_tab.dart';
+import 'package:movies_app_graduation_project/providers/movie_provider.dart';
+import 'package:movies_app_graduation_project/providers/search_provider.dart';
+import 'package:movies_app_graduation_project/features/home/data/repositories/movie_repository.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,6 +21,19 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  late final SearchProvider _searchProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchProvider = SearchProvider(context.read<MovieRepository>());
+  }
+
+  @override
+  void dispose() {
+    _searchProvider.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +41,15 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.black,
       body: IndexedStack(
         index: _currentIndex,
-        children: const [HomeTab(), SearchTab(), BrowseTab(), ProfileTab()],
+        children: [
+          const HomeTab(),
+          ChangeNotifierProvider<SearchProvider>.value(
+            value: _searchProvider,
+            child: const SearchTab(),
+          ),
+          const BrowseTab(),
+          const ProfileTab(),
+        ],
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
@@ -141,130 +166,238 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    final availableMovies = MovieRepository.getAvailableNowMovies();
-    final actionMovies = MovieRepository.getActionMovies();
+    final movieProvider = context.watch<MovieProvider>();
+    final availableMovies = movieProvider.availableNow;
+    final actionMovies = movieProvider.actionMovies;
 
     return SafeArea(
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            // Available Now Header - Centered
-            Center(
-              child: Image.asset(
-                'assets/images/available_now.png',
-                height: 50,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Text(
-                    'Available Now',
-                    style: GoogleFonts.caveat(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white,
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Main Movie Carousel with PageView
-            SizedBox(
-              height: 400,
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: availableMovies.length,
-                itemBuilder: (context, index) {
-                  final movie = availableMovies[index];
-                  // Calculate distance from current page 
-                  final double pageDifference =
-                      (index.toDouble() - _currentPage).abs();
-                  final double scale = (1.0 - (pageDifference * 0.2)).clamp(
-                    0.8,
-                    1.0,
-                  );
-                  final double opacity = (1.0 - (pageDifference * 0.4)).clamp(
-                    0.6,
-                    1.0,
-                  );
-                  return _buildMainMovieCard(movie, scale, opacity);
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Watch Now Header
-            Center(
-              child: Image.asset(
-                'assets/images/watch_now.png',
-                height: 45,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Text(
-                    'Watch Now',
-                    style: GoogleFonts.caveat(
-                      fontSize: 42,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white,
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Action Category Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Action',
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                    },
-                    child: Text(
-                      'See More →',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
+      child: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => context.read<MovieProvider>().loadHomeData(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+              Center(
+                child: Image.asset(
+                  'assets/images/available_now.png',
+                  height: 50,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Text(
+                      'Available Now',
+                      style: GoogleFonts.caveat(
+                        fontSize: 48,
                         fontWeight: FontWeight.w400,
-                        color: AppColors.primary,
+                        color: Colors.white,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildAvailableSection(movieProvider, availableMovies),
+              const SizedBox(height: 16),
+              Center(
+                child: Image.asset(
+                  'assets/images/watch_now.png',
+                  height: 45,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Text(
+                      'Watch Now',
+                      style: GoogleFonts.caveat(
+                        fontSize: 42,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Action',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
                       ),
                     ),
-                  ),
-                ],
+                    GestureDetector(
+                      onTap: () {
+                        context.read<MovieProvider>().refreshCategory('Action');
+                      },
+                      child: Text(
+                        'Refresh →',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildActionSection(movieProvider, actionMovies),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvailableSection(
+    MovieProvider provider,
+    List<MovieModel> availableMovies,
+  ) {
+    if (provider.isLoading && availableMovies.isEmpty) {
+      return _buildLoadingState(height: 400);
+    }
+
+    if (provider.errorMessage != null && availableMovies.isEmpty) {
+      return _buildErrorState(
+        message: provider.errorMessage!,
+        onRetry: provider.loadHomeData,
+        height: 400,
+      );
+    }
+
+    if (availableMovies.isEmpty) {
+      return _buildEmptyState(
+        message: 'No movies found right now.',
+        height: 200,
+      );
+    }
+
+    return SizedBox(
+      height: 400,
+      child: PageView.builder(
+        controller: _pageController,
+        itemCount: availableMovies.length,
+        itemBuilder: (context, index) {
+          final movie = availableMovies[index];
+          final double pageDifference = (index.toDouble() - _currentPage).abs();
+          final double scale = (1.0 - (pageDifference * 0.2)).clamp(0.8, 1.0);
+          final double opacity = (1.0 - (pageDifference * 0.4)).clamp(0.6, 1.0);
+          return _buildMainMovieCard(movie, scale, opacity);
+        },
+      ),
+    );
+  }
+
+  Widget _buildActionSection(
+    MovieProvider provider,
+    List<MovieModel> actionMovies,
+  ) {
+    if (provider.isLoading && actionMovies.isEmpty) {
+      return _buildLoadingState(height: 200);
+    }
+
+    if (provider.errorMessage != null && actionMovies.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: _buildErrorState(
+          message: provider.errorMessage!,
+          onRetry: provider.loadHomeData,
+          height: 160,
+        ),
+      );
+    }
+
+    if (actionMovies.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: _buildEmptyState(
+          message: 'No action movies found.',
+          height: 160,
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 200,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.only(left: 20, right: 20),
+        itemCount: actionMovies.length,
+        itemBuilder: (context, index) {
+          final movie = actionMovies[index];
+          return _buildCategoryMovieCard(movie);
+        },
+      ),
+    );
+  }
+
+  Widget _buildLoadingState({double height = 200}) {
+    return SizedBox(
+      height: height,
+      child: const Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  Widget _buildErrorState({
+    required String message,
+    required Future<void> Function() onRetry,
+    double height = 200,
+  }) {
+    return SizedBox(
+      height: height,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Something went wrong',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
-            const SizedBox(height: 16),
-            // Action Movies List
-            SizedBox(
-              height: 200,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.only(left: 20, right: 20),
-                itemCount: actionMovies.length,
-                itemBuilder: (context, index) {
-                  final movie = actionMovies[index];
-                  return _buildCategoryMovieCard(movie);
-                },
-              ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () {
+                onRetry();
+              },
+              child: const Text('Try again'),
+            ),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildEmptyState({required String message, double height = 200}) {
+    return SizedBox(
+      height: height,
+      child: Center(
+        child: Text(
+          message,
+          style: GoogleFonts.poppins(fontSize: 14, color: Colors.white70),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMainMovieCard(MovieModel movie, double scale, double opacity) {
-    final isCentered =
-        scale >= 0.95; 
+    final isCentered = scale >= 0.95;
 
     return Transform.scale(
       scale: scale,
@@ -310,23 +443,10 @@ class _HomeTabState extends State<HomeTab> {
                     child: Stack(
                       children: [
                         // Movie Poster Image
-                        Image.asset(
+                        _buildPosterImage(
                           movie.posterPath,
                           width: 250,
                           height: 350,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 250,
-                              height: 350,
-                              color: Colors.grey[800],
-                              child: const Icon(
-                                Icons.movie,
-                                color: Colors.grey,
-                                size: 50,
-                              ),
-                            );
-                          },
                         ),
                         // Rating Badge
                         Positioned(
@@ -403,24 +523,7 @@ class _HomeTabState extends State<HomeTab> {
           borderRadius: BorderRadius.circular(12),
           child: Stack(
             children: [
-              Image.asset(
-                movie.posterPath,
-                width: 140,
-                height: 200,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 140,
-                    height: 200,
-                    color: Colors.grey[800],
-                    child: const Icon(
-                      Icons.movie,
-                      color: Colors.grey,
-                      size: 40,
-                    ),
-                  );
-                },
-              ),
+              _buildPosterImage(movie.posterPath, width: 140, height: 200),
               // Rating Badge
               Positioned(
                 top: 8,
@@ -455,6 +558,48 @@ class _HomeTabState extends State<HomeTab> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPosterImage(
+    String path, {
+    required double width,
+    required double height,
+  }) {
+    if (path.startsWith('http')) {
+      return CachedNetworkImage(
+        imageUrl: path,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey[900],
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+        errorWidget: (context, url, error) =>
+            _buildImageFallback(width, height),
+      );
+    }
+
+    return Image.asset(
+      path,
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return _buildImageFallback(width, height);
+      },
+    );
+  }
+
+  Widget _buildImageFallback(double width, double height) {
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.grey[800],
+      child: const Icon(Icons.movie, color: Colors.grey, size: 40),
     );
   }
 }

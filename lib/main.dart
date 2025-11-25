@@ -17,18 +17,27 @@ import 'providers/auth_provider.dart';
 import 'providers/favorites_provider.dart';
 import 'core/prefs_manager/prefs_manager.dart';
 import 'features/auth/data/repositories/auth_repository.dart';
+import 'features/home/data/repositories/movie_repository.dart';
+import 'features/home/data/datasources/yts_api_service.dart';
+import 'providers/movie_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final prefsManager = await PrefsManager.getInstance();
-  runApp(MyApp(prefsManager: prefsManager));
+  final movieRepository = MovieRepository(YtsApiService());
+  runApp(MyApp(prefsManager: prefsManager, movieRepository: movieRepository));
 }
 
 class MyApp extends StatelessWidget {
   final PrefsManager prefsManager;
+  final MovieRepository movieRepository;
 
-  const MyApp({super.key, required this.prefsManager});
+  const MyApp({
+    super.key,
+    required this.prefsManager,
+    required this.movieRepository,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +45,10 @@ class MyApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
+        Provider<MovieRepository>.value(value: movieRepository),
+        ChangeNotifierProvider(
+          create: (_) => MovieProvider(movieRepository)..loadHomeData(),
+        ),
         ChangeNotifierProvider(create: (_) => SplashProvider()),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(authRepository)..initialize(),

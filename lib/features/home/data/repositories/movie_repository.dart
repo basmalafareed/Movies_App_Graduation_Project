@@ -1,81 +1,69 @@
+import 'package:movies_app_graduation_project/core/network/api_exception.dart';
+import 'package:movies_app_graduation_project/features/home/data/datasources/yts_api_service.dart';
 import 'package:movies_app_graduation_project/features/home/data/models/movie_model.dart';
 
 class MovieRepository {
-  // Mock data - in production, this would come from an API
-  static List<MovieModel> getAvailableNowMovies() {
-    return [
-      MovieModel(
-        id: '2',
-        title: 'Baby Driver',
-        tagline: 'ATLANTA',
-        posterPath: 'assets/images/movies_posters_2.png',
-        rating: 7.7,
-        cast: [
-          'ANSEL ELGORT',
-          'KEVIN SPACEY',
-          'LILY JAMES',
-          'EIZA GONZALEZ',
-          'JON HAMM',
-          'JAMIE FOXX',
-        ],
-      ),
-      MovieModel(
-        id: '1',
-        title: '1917',
-        tagline: 'TIME IS THE ENEMY',
-        posterPath: 'assets/images/movies_posters_1.png',
-        rating: 7.7,
-      ),
-      MovieModel(
-        id: '3',
-        title: 'Captain America: The First Avenger',
-        posterPath: 'assets/images/movies_posters_3.png',
-        rating: 7.7,
-      ),
-    ];
+  final YtsApiService _apiService;
+
+  MovieRepository(this._apiService);
+
+  Future<List<MovieModel>> getAvailableNowMovies() async {
+    final movies = await _apiService.listMovies(
+      limit: 10,
+      sortBy: 'date_added',
+      orderBy: 'desc',
+    );
+    return movies
+        .map((movie) => MovieModel.fromYtsJson(movie as Map<String, dynamic>))
+        .toList();
   }
 
-  static List<MovieModel> getActionMovies() {
-    return [
-      MovieModel(
-        id: '5',
-        title: 'Black Widow',
-        tagline: 'MARVEL STUDIOS',
-        posterPath: 'assets/images/movies_posters_5.png',
-        rating: 7.7,
-        category: 'Action',
-      ),
-      MovieModel(
-        id: '4',
-        title: 'The Dark Knight',
-        tagline: 'WELCOME TO A WORLD WITHOUT RULES',
-        posterPath: 'assets/images/movies_posters_4.png',
-        rating: 7.7,
-        category: 'Action',
-      ),
-      MovieModel(
-        id: '3',
-        title: 'Captain America: The First Avenger',
-        posterPath: 'assets/images/movies_posters_3.png',
-        rating: 7.7,
-        category: 'Action',
-      ),
-      MovieModel(
-        id: '6',
-        title: 'Avengers',
-        posterPath: 'assets/images/movies_posters_6.png',
-        rating: 7.7,
-        category: 'Action',
-      ),
-    ];
+  Future<List<MovieModel>> getMoviesByCategory(String category) async {
+    final movies = await _apiService.listMovies(
+      limit: 20,
+      genre: category,
+      sortBy: 'like_count',
+      orderBy: 'desc',
+    );
+    return movies
+        .map((movie) => MovieModel.fromYtsJson(movie as Map<String, dynamic>))
+        .toList();
   }
 
-  static List<MovieModel> getMoviesByCategory(String category) {
-    return getActionMovies();
+  Future<MovieModel> getMovieDetails(String movieId) async {
+    final id = int.tryParse(movieId);
+    if (id == null) {
+      throw ApiException('Invalid movie id: $movieId');
+    }
+    final movie = await _apiService.movieDetails(movieId: id);
+    return MovieModel.fromYtsJson(movie);
   }
 
-  static List<String> getCategories() {
-    return [
+  Future<List<MovieModel>> getSuggestions(String movieId) async {
+    final id = int.tryParse(movieId);
+    if (id == null) {
+      throw ApiException('Invalid movie id: $movieId');
+    }
+    final movies = await _apiService.movieSuggestions(movieId: id);
+    return movies
+        .map((movie) => MovieModel.fromYtsJson(movie as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<MovieModel>> searchMovies(String query) async {
+    final movies = await _apiService.listMovies(
+      query: query,
+      limit: 30,
+      sortBy: 'download_count',
+      orderBy: 'desc',
+    );
+    return movies
+        .map((movie) => MovieModel.fromYtsJson(movie as Map<String, dynamic>))
+        .toList();
+  }
+
+  List<String> getCategories() {
+    return const [
       'Action',
       'Adventure',
       'Animation',

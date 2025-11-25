@@ -1,13 +1,14 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:movies_app_graduation_project/core/resources/colors.dart';
 import 'package:movies_app_graduation_project/core/routes/app_routes.dart';
 import 'package:movies_app_graduation_project/features/home/data/models/movie_model.dart';
-import 'package:movies_app_graduation_project/features/home/data/repositories/movie_repository.dart';
 import 'package:movies_app_graduation_project/features/home/presentation/screens/edit_profile_screen.dart';
 import 'package:movies_app_graduation_project/providers/auth_provider.dart';
 import 'package:movies_app_graduation_project/providers/favorites_provider.dart';
+import 'package:movies_app_graduation_project/providers/movie_provider.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -288,13 +289,15 @@ class _ProfileTabState extends State<ProfileTab> {
             );
           }
 
-          // Get all movies and filter favorites
+          final movieProvider = context.watch<MovieProvider>();
           final allMovies = [
-            ...MovieRepository.getAvailableNowMovies(),
-            ...MovieRepository.getActionMovies(),
+            ...movieProvider.availableNow,
+            ...movieProvider.actionMovies,
           ];
-          final favoriteMovies = allMovies
-              .where((movie) => favoriteIds.contains(movie.id))
+          final movieMap = {for (final movie in allMovies) movie.id: movie};
+          final favoriteMovies = favoriteIds
+              .map((id) => movieMap[id])
+              .whereType<MovieModel>()
               .toList();
 
           return Padding(
@@ -304,8 +307,8 @@ class _ProfileTabState extends State<ProfileTab> {
         },
       );
     } else {
-      // History - Movie Grid
-      final historyMovies = MovieRepository.getActionMovies();
+      final movieProvider = context.watch<MovieProvider>();
+      final historyMovies = movieProvider.actionMovies;
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: _buildMovieGrid(historyMovies),
@@ -355,20 +358,7 @@ class _ProfileTabState extends State<ProfileTab> {
           borderRadius: BorderRadius.circular(12),
           child: Stack(
             children: [
-              Image.asset(
-                movie.posterPath,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[800],
-                    child: const Icon(
-                      Icons.movie,
-                      color: Colors.grey,
-                      size: 40,
-                    ),
-                  );
-                },
-              ),
+              _buildPosterImage(movie.posterPath),
               // Rating Badge
               Positioned(
                 top: 8,
@@ -419,5 +409,34 @@ class _ProfileTabState extends State<ProfileTab> {
     Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+  }
+
+  Widget _buildPosterImage(String path) {
+    if (path.startsWith('http')) {
+      return CachedNetworkImage(
+        imageUrl: path,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          color: Colors.grey[900],
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+        errorWidget: (context, url, error) => _posterFallback(),
+      );
+    }
+
+    return Image.asset(
+      path,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return _posterFallback();
+      },
+    );
+  }
+
+  Widget _posterFallback() {
+    return Container(
+      color: Colors.grey[800],
+      child: const Icon(Icons.movie, color: Colors.grey, size: 40),
+    );
   }
 }

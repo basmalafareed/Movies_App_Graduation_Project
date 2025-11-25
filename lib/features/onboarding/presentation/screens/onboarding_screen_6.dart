@@ -90,7 +90,7 @@ class OnboardingScreen6 extends StatelessWidget {
             right: 0,
             child: Container(
               decoration: const BoxDecoration(
-                color: Color(0xFF0A0A0A), 
+                color: Color(0xFF0A0A0A),
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(32),
                   topRight: Radius.circular(32),
