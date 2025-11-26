@@ -124,6 +124,44 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Update profile
+  Future<bool> updateProfile({
+    required String name,
+    String? phone,
+    required String avatar,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _currentUser = await _authRepository.updateProfile(
+        name: name,
+        phone: phone,
+        avatar: avatar,
+      );
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Refresh profile from server
+  Future<void> refreshProfile() async {
+    try {
+      _currentUser = await _authRepository.getCurrentUser();
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Failed to refresh profile';
+      notifyListeners();
+    }
+  }
+
   /// Clear error message
   void clearError() {
     _errorMessage = null;

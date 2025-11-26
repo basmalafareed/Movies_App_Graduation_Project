@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "729727466958",
+    "project_id": "movies-app-graduation-project",
+    "storage_bucket": "movies-app-graduation-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:729727466958:android:4d32b2ba18a539e0b0ff9f",
+        "android_client_info": {
+          "package_name": "com.example.movies_app_graduation_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmS-h_xDmGydsaSSHBNgtb5u3-yhzH_6o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

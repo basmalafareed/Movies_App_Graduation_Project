@@ -28,6 +28,16 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     _movie = widget.movie;
     _fetchDetails();
     _fetchSuggestions();
+    // Add movie to viewing history
+    _addToHistory();
+  }
+
+  void _addToHistory() {
+    // Use a post-frame callback to ensure context is available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final favoritesProvider = context.read<FavoritesProvider>();
+      favoritesProvider.addToHistory(widget.movie.id);
+    });
   }
 
   Future<void> _fetchDetails() async {

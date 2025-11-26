@@ -19,186 +19,191 @@ class ProfileTab extends StatefulWidget {
 
 class _ProfileTabState extends State<ProfileTab> {
   int _selectedTab = 0; // 0 = Watch List, 1 = History
-  String _userName = 'Menna Tarek';
-  String _userAvatar = 'assets/images/avt_2.png';
-  int _historyCount = 10;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24),
-              // Header Section - Avatar and Name
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Left side - Avatar and Name
-                    Flexible(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Avatar
-                          CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Colors.transparent,
-                            backgroundImage: AssetImage(_userAvatar),
-                          ),
-                          const SizedBox(height: 16),
-                          // User Name
-                          Text(
-                            _userName,
-                            style: GoogleFonts.poppins(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 30),
-                    // Right side - Stats (horizontal)
-                    Consumer<FavoritesProvider>(
-                      builder: (context, favoritesProvider, _) {
-                        final wishListCount =
-                            favoritesProvider.favoriteMovieIds.length;
-                        return Row(
-                          children: [
-                            _buildStatItem('$wishListCount', 'Wish List'),
-                            const SizedBox(width: 32),
-                            _buildStatItem('$_historyCount', 'History'),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-              // Action Buttons
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    // Edit Profile Button (2/3 width)
-                    Expanded(
-                      flex: 2,
-                      child: SizedBox(
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => EditProfileScreen(
-                                  userName: _userName,
-                                  userAvatar: _userAvatar,
-                                  onProfileUpdated: (name, avatar) {
-                                    setState(() {
-                                      _userName = name;
-                                      _userAvatar = avatar;
-                                    });
-                                  },
-                                ),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            'Edit Profile',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Exit Button (1/3 width)
-                    Expanded(
-                      flex: 1,
-                      child: SizedBox(
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _handleLogout,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.error,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+        child: Consumer<AuthProvider>(
+          builder: (context, authProvider, _) {
+            final currentUser = authProvider.currentUser;
+            final userName = currentUser?.name ?? 'User';
+            final userAvatar = currentUser?.avatar ?? 'assets/images/avt_1.png';
+
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 24),
+                  // Header Section - Avatar and Name
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Left side - Avatar and Name
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Avatar
+                              CircleAvatar(
+                                radius: 50,
+                                backgroundColor: Colors.transparent,
+                                backgroundImage: userAvatar.startsWith('http')
+                                    ? NetworkImage(userAvatar)
+                                    : AssetImage(userAvatar) as ImageProvider,
+                              ),
+                              const SizedBox(height: 16),
+                              // User Name
                               Text(
-                                'Exit',
+                                userName,
                                 style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Icon(
-                                Icons.exit_to_app,
-                                color: Colors.white,
-                                size: 20,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 30),
+                        // Right side - Stats (horizontal)
+                        Consumer<FavoritesProvider>(
+                          builder: (context, favoritesProvider, _) {
+                            final wishListCount =
+                                favoritesProvider.favoriteMovieIds.length;
+                            final historyCount = favoritesProvider.historyCount;
+                            return Row(
+                              children: [
+                                _buildStatItem('$wishListCount', 'Wish List'),
+                                const SizedBox(width: 32),
+                                _buildStatItem('$historyCount', 'History'),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 32),
+                  // Action Buttons
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        // Edit Profile Button (2/3 width)
+                        Expanded(
+                          flex: 2,
+                          child: SizedBox(
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const EditProfileScreen(),
+                                  ),
+                                );
+                                // Refresh profile after returning
+                                if (mounted) {
+                                  authProvider.refreshProfile();
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                'Edit Profile',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Exit Button (1/3 width)
+                        Expanded(
+                          flex: 1,
+                          child: SizedBox(
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: () =>
+                                  _handleLogout(context, authProvider),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.error,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Exit',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.exit_to_app,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  // Tab Navigator
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildTabItem(
+                            icon: Icons.list_alt,
+                            label: 'Watch List',
+                            isSelected: _selectedTab == 0,
+                            onTap: () => setState(() => _selectedTab = 0),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildTabItem(
+                            icon: Icons.folder,
+                            label: 'History',
+                            isSelected: _selectedTab == 1,
+                            onTap: () => setState(() => _selectedTab = 1),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Tab Content
+                  _buildTabContent(),
+                ],
               ),
-              const SizedBox(height: 32),
-              // Tab Navigator
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildTabItem(
-                        icon: Icons.list_alt,
-                        label: 'Watch List',
-                        isSelected: _selectedTab == 0,
-                        onTap: () => setState(() => _selectedTab = 0),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildTabItem(
-                        icon: Icons.folder,
-                        label: 'History',
-                        isSelected: _selectedTab == 1,
-                        onTap: () => setState(() => _selectedTab = 1),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Tab Content
-              _buildTabContent(),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -307,11 +312,48 @@ class _ProfileTabState extends State<ProfileTab> {
         },
       );
     } else {
-      final movieProvider = context.watch<MovieProvider>();
-      final historyMovies = movieProvider.actionMovies;
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: _buildMovieGrid(historyMovies),
+      // History - Show user's viewing history
+      return Consumer<FavoritesProvider>(
+        builder: (context, favoritesProvider, _) {
+          final historyIds = favoritesProvider.historyMovieIds;
+
+          if (historyIds.isEmpty) {
+            // Empty State
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Center(
+                child: Image.asset(
+                  'assets/images/search_tab_image.png',
+                  width: 200,
+                  height: 200,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(
+                      Icons.history,
+                      color: Colors.grey,
+                      size: 100,
+                    );
+                  },
+                ),
+              ),
+            );
+          }
+
+          final movieProvider = context.watch<MovieProvider>();
+          final allMovies = [
+            ...movieProvider.availableNow,
+            ...movieProvider.actionMovies,
+          ];
+          final movieMap = {for (final movie in allMovies) movie.id: movie};
+          final historyMovies = historyIds
+              .map((id) => movieMap[id])
+              .whereType<MovieModel>()
+              .toList();
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _buildMovieGrid(historyMovies),
+          );
+        },
       );
     }
   }
@@ -400,8 +442,10 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  Future<void> _handleLogout() async {
-    final authProvider = context.read<AuthProvider>();
+  Future<void> _handleLogout(
+    BuildContext context,
+    AuthProvider authProvider,
+  ) async {
     await authProvider.logout();
 
     if (!mounted) return;
